@@ -5,5 +5,4 @@ const NotePage = () => {
     <div>NotePage ID</div>
   )
 }
-
 export default NotePage

@@ -1,8 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { onAuthStateChanged, type User } from "firebase/auth"
-import { auth } from "@/lib/firebase"
+import { useAuthUser } from "@/hooks/use-auth-user"
 import {
   IconCreditCard,
   IconDotsVertical,
@@ -42,16 +40,7 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
-  const [firebaseUser, setFirebaseUser] = useState<User | null>(null)
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setFirebaseUser(u))
-    return () => unsub()
-  }, [])
-
-  const displayName = firebaseUser?.displayName ?? user?.name ?? "User"
-  const email = firebaseUser?.email ?? user?.email ?? ""
-  const photoURL = firebaseUser?.photoURL ?? user?.avatar ?? ""
+  const { displayName, email, photoURL } = useAuthUser()
 
   const computeInitials = (nameOrEmail: string) => {
     if (!nameOrEmail) return "?"

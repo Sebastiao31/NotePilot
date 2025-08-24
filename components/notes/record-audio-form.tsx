@@ -1,7 +1,6 @@
 "use client"
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
-import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Button } from '../ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
@@ -16,10 +15,7 @@ const RecordAudioForm: React.FC = () => {
       <CardContent className="space-y-6 h-full px-6 flex flex-col justify-between">
 
         <div className="space-y-6">
-        <div className="space-y-2">
-          <Label>Note Title</Label>
-          <Input placeholder="Enter a descriptive title for your note..." />
-        </div>
+        
 
         <div className="space-y-2">
           <Label>Audio language</Label>

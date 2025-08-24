@@ -1,11 +1,10 @@
 "use client"
 import React, { useCallback, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
-import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Button } from '../ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
-import { IconSparkles, IconUpload } from '@tabler/icons-react'
+import { IconSparkles, IconLoader2 } from '@tabler/icons-react'
 import DocUpload from './doc-upload'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import { Textarea } from '../ui/textarea'
@@ -19,7 +18,6 @@ const UploadDocForm: React.FC = () => {
   const router = useRouter()
   const { user } = useAuthUser()
   const [activeTab, setActiveTab] = useState<'Document' | 'Text'>('Document')
-  const [title, setTitle] = useState('')
   const [folderId, setFolderId] = useState<string | null>(null)
   const [text, setText] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -43,21 +41,17 @@ const UploadDocForm: React.FC = () => {
       if (!res.ok) throw new Error(data?.error || 'Summarization failed')
       const summary: string = data.summary || ''
 
-      // Generate a title if missing
-      let generatedTitle = title.trim()
-      if (!generatedTitle) {
+      // Always auto-generate a title
+      let generatedTitle = 'Untitled Note'
+      try {
         const tRes = await fetch('/api/generate-title', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text }),
         })
         const tData = await tRes.json()
-        if (tRes.ok && tData?.title) {
-          generatedTitle = tData.title
-        } else {
-          generatedTitle = 'Untitled Note'
-        }
-      }
+        if (tRes.ok && tData?.title) generatedTitle = tData.title
+      } catch {}
 
       const docRef = await addDoc(collection(db, 'notes'), {
         userId: user!.uid,
@@ -77,7 +71,7 @@ const UploadDocForm: React.FC = () => {
     } finally {
       setIsSubmitting(false)
     }
-  }, [canSubmit, text, title, user, folderId, router])
+  }, [canSubmit, text, user, folderId, router])
 
   return (
     <Card className="h-full ">
@@ -93,14 +87,6 @@ const UploadDocForm: React.FC = () => {
             </TabsList>
             <TabsContent value="Document">
               <div className="space-y-6">
-                <div className="space-y-2 mt-2">
-                  <Label>Note Title</Label>
-                  <Input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Enter a descriptive title for your note..."
-                  />
-                </div>
                 <div className="space-y-2">
                   <Label>Document</Label>
                   <DocUpload />
@@ -120,14 +106,6 @@ const UploadDocForm: React.FC = () => {
             </TabsContent>
             <TabsContent value="Text">
             <div className="space-y-6">
-                <div className="space-y-2 mt-2">
-                  <Label>Note Title</Label>
-                  <Input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Enter a descriptive title for your note..."
-                  />
-                </div>
                 <div className="space-y-2">
                   <Label>Text</Label>
                   <TextSummarize value={text} onChange={setText} />
@@ -149,8 +127,8 @@ const UploadDocForm: React.FC = () => {
         </div>
 
         <div>
-          <Button className="w-full h-12 text-base" disabled={!canSubmit || isSubmitting} onClick={handleSummarize}>
-            <IconSparkles /> {isSubmitting ? 'Summarizing...' : 'Summarize content'}
+          <Button className="w-full h-12 text-base flex items-center justify-center gap-2" disabled={!canSubmit || isSubmitting} onClick={handleSummarize} aria-busy={isSubmitting}>
+            {isSubmitting ? (<><IconLoader2 className="animate-spin" /> Summarizing...</>) : (<><IconSparkles /> Summarize content</>)}
           </Button>
         </div>
       </CardContent>

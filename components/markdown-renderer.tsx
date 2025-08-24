@@ -51,18 +51,7 @@ const MarkdownRenderer: React.FC<Props> = ({ content, showTOC=false }) => {
 
   return (
     <div className="md-content max-w-none">
-      {showTOC && toc.length > 2 && (
-        <div className="mb-6 border rounded-md p-3 bg-gray-50">
-          <div className="text-sm font-semibold mb-2">Table of contents</div>
-          <ul className="m-0">
-            {toc.map((h) => (
-              <li key={h.id} className={`ml-${(h.level-1)*4}`}>
-                <a href={`#${h.id}`} className="text-sm hover:underline">{h.text}</a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      
       <ReactMarkdown
         rehypePlugins={[rehypeSlug, rehypeRaw, rehypeKatex]}
         remarkPlugins={[remarkGfm, remarkMath]}

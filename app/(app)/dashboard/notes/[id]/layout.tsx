@@ -3,6 +3,9 @@ import React, { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { db } from '@/lib/firebase'
 import { doc, getDoc } from 'firebase/firestore'
+import { RightSidebar, RightSidebarInset, RightSidebarProvider } from '@/components/ui/right-sidebar'
+import NoteLayoutHeader from '@/components/note-layout-header'
+import NoteChat from '@/components/notes/note-chat'
 
 type NoteDoc = {
   title: string
@@ -29,23 +32,23 @@ export default function NoteLayout({ children }: { children: React.ReactNode }) 
   }, [params])
 
   return (
-    <div className='h-full'>
-      <div className='flex h-full'>
-        <div className='flex-1 min-w-0 h-full'>{children}</div>
-        <aside className='w-full max-w-md h-full'>
-          <div className='sticky top-4 border-l  p-4 h-full'>
-            <h2 className='text-lg font-medium mb-2'>Original Content</h2>
-            {loading ? (
-              <div>Loading...</div>
-            ) : note ? (
-              <pre className='whitespace-pre-wrap text-sm'>{note.content}</pre>
-            ) : (
-              <div className='text-sm text-muted-foreground'>Not found.</div>
+    <RightSidebarProvider>
+      <RightSidebarInset>
+        {children}
+      </RightSidebarInset>
+      <RightSidebar>
+        <div className='flex h-full flex-col'>
+          <div className='shrink-0 border-b'>
+            <NoteLayoutHeader />
+          </div>
+          <div className='min-h-0 flex-1'>
+            {loading || !note ? null : (
+              <NoteChat noteId={params.id} title={note.title} summary={note.summary} content={note.content} />
             )}
           </div>
-        </aside>
-      </div>
-    </div>
+        </div>
+      </RightSidebar>
+    </RightSidebarProvider>
   )
 }
 

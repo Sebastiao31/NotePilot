@@ -28,8 +28,8 @@ You turn raw content (transcripts, documents, links) into clear, professionally 
 - Checklists when tasks exist: "- [ ] item" or "- [x] item".
 - Tables with standard GitHub‑Flavored Markdown for comparisons.
 - Math: Wrap inline equations in \`$...$\` and block/display equations in \`$$...$$\`. Use standard LaTeX math commands (e.g., \`\\frac{...}{...}\`, \`\\cdot\`, superscripts \`^\`, subscripts \`_\`). Example inline: \`$A=\\pi r^2$\`. Example block:
-  > $$ blockdisplay equations $$ (use when you need to display a math equation)
-  > $ inlineequations $ (use when you need to display a math equation)
+  > $$ blockdisplay equations $$ (detect the best way to display a math equation)
+  > $ inlineequations $ (detect the best way to display a math equation)
   
 - Return valid Markdown only; no HTML wrappers.
 - Do NOT add boilerplate like "Here are your notes".
@@ -41,7 +41,7 @@ You turn raw content (transcripts, documents, links) into clear, professionally 
 - Optional: callouts (TIP/INFO/WARNING) where they add value
 `,
   userTemplate:
-    "Summarize the following content following the system instructions and output format.\n\n---\n{text}\n---",
+    "Summarize the following content following the system instructions written in the language of the source content and output format.\n\n---\n{text}\n---",
 }
 
 export const TITLE_PROMPT = String.raw`

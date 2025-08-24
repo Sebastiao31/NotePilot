@@ -14,10 +14,7 @@ const UploadAudioForm: React.FC = () => {
         <CardTitle className="text-xl">Note Details</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <Label>Note Title</Label>
-          <Input placeholder="Enter a descriptive title for your note..." />
-        </div>
+        
 
         <div className="space-y-2">
           <Label>Audio File</Label>

@@ -120,3 +120,14 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Markdown content spacing tweaks */
+.md-content :where(h1,h2,h3){
+  margin-top: 1.50rem;
+  margin-bottom: 0.75rem;
+}
+.md-content :where(p,ul,ol){
+  line-height: 1.8;
+}
+.md-content ul{ margin-top: 0.25rem; margin-bottom: 0.75rem; }
+.md-content li{ margin-top: 0.25rem; margin-bottom: 0.25rem; }

@@ -68,4 +68,10 @@ export type Note = {
   updatedAt?: unknown
 }
 
+export const SOURCE_TYPE_COLORS: Record<NoteSourceType, string> = {
+  text: '#16a34a',      // green
+  document: '#16a34a',  // green (same as text/doc)
+  audio: '#f59e0b',     // yellow
+  link: '#2563eb',      // blue
+}
 

@@ -81,6 +81,11 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs"
 import Link from "next/link"
+import { useAuthUser } from "@/hooks/use-auth-user"
+import { db } from "@/lib/firebase"
+import { collection, doc, onSnapshot, query, updateDoc, where } from "firebase/firestore"
+import { IconFolder, IconFile, IconLink, IconVolume, IconMicrophone } from "@tabler/icons-react"
+import { SOURCE_TYPE_COLORS } from "@/constants"
 
 export type DataRow = {
   id: number
@@ -111,7 +116,9 @@ function DragHandle({ id }: { id: number }) {
   )
 }
 
-const columns: ColumnDef<DataRow>[] = [
+// Default columns template. The concrete columns are created inside DataTable
+// so we can access per-user folders for the Folder cell.
+const baseColumns: ColumnDef<DataRow>[] = [
   // Selection checkbox
   {
     id: "select",
@@ -149,20 +156,44 @@ const columns: ColumnDef<DataRow>[] = [
     enableHiding: false,
   },
   // Right-aligned meta columns
-  {
-    id: "folder",
-    header: () => <div className="text-right w-full">Folder</div>,
-    cell: ({ row }) => (
-      <div className="text-right text-muted-foreground">{row.original.folder || "No Folder"}</div>
-    ),
-    enableSorting: false,
-  },
+  // Folder column will be overridden in DataTable to include assignment select
   {
     id: "source",
     header: () => <div className="text-right w-full">Source</div>,
-    cell: ({ row }) => (
-      <div className="text-right text-muted-foreground">{row.original.source}</div>
-    ),
+    cell: ({ row }) => {
+      const type = (row.original.source || '').toLowerCase()
+      let label = row.original.source || 'Other'
+      let icon: React.ReactNode = <IconFile />
+      let hex = SOURCE_TYPE_COLORS.text
+      if (type.includes('record')) {
+        label = 'Record'
+        icon = <IconMicrophone />
+        hex = '#ef4444' // red for record audio
+      } else if (type.includes('audio')) {
+        label = 'Audio'
+        icon = <IconVolume />
+        hex = SOURCE_TYPE_COLORS.audio
+      } else if (type.includes('link')) {
+        label = 'Link'
+        icon = <IconLink />
+        hex = SOURCE_TYPE_COLORS.link
+      } else if (type.includes('doc') || type.includes('text')) {
+        label = type.includes('doc') ? 'Document' : 'Text'
+        icon = <IconFile />
+        hex = SOURCE_TYPE_COLORS.text
+      }
+      const textColor = hex.toLowerCase() === '#f59e0b' ? '#111827' : '#ffffff'
+      return (
+        <div className="text-right">
+          <span className="inline-flex justify-end w-full">
+            <Badge variant="outline" style={{ backgroundColor: hex, color: textColor, borderColor: 'transparent' }} className="ml-auto">
+              {icon}
+              {label}
+            </Badge>
+          </span>
+        </div>
+      )
+    },
     enableSorting: false,
   },
   {
@@ -228,12 +259,23 @@ function DraggableRow({ row }: { row: Row<DataRow> }) {
 
 export function DataTable({
   data: initialData,
+  hideFolderColumn = false,
 }: {
   data: DataRow[]
+  hideFolderColumn?: boolean
 }) {
+  const { user } = useAuthUser()
+  const [folders, setFolders] = React.useState<{ id: string; name: string }[]>([])
   const [data, setData] = React.useState(() => initialData)
+  const [selectedFolders, setSelectedFolders] = React.useState<Record<string, string | null>>({})
   React.useEffect(() => {
     setData(initialData)
+    // seed local selections from incoming data
+    const seed: Record<string, string | null> = {}
+    for (const r of initialData) {
+      seed[r.docId] = r.folder && r.folder !== 'No Folder' ? r.folder : null
+    }
+    setSelectedFolders(seed)
   }, [initialData])
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] =
@@ -258,9 +300,77 @@ export function DataTable({
     [data]
   )
 
+  React.useEffect(() => {
+    if (!user) {
+      setFolders([])
+      return
+    }
+    const q = query(collection(db, 'folders'), where('userId', '==', user.uid))
+    const unsub = onSnapshot(q, (snap) => {
+      const items: { id: string; name: string }[] = []
+      snap.forEach((d) => items.push({ id: d.id, name: (d.data() as any).name || 'Folder' }))
+      setFolders(items)
+    })
+    return () => unsub()
+  }, [user])
+
+  const assignFolder = async (noteId: string, folderId: string) => {
+    try {
+      await updateDoc(doc(db, 'notes', noteId), { folderId })
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to assign folder', e)
+    }
+  }
+
+  const columnsLocal: ColumnDef<DataRow>[] = React.useMemo(() => {
+    if (hideFolderColumn) {
+      // select, note, source, created-at, actions (without folder column)
+      return [...baseColumns.slice(0, 2), baseColumns[2], ...baseColumns.slice(3)]
+    }
+    return [
+      ...baseColumns.slice(0, 2),
+      {
+        id: 'folder',
+        header: () => <div className="text-right w-full">Folder</div>,
+        cell: ({ row }) => {
+          const current = selectedFolders[row.original.docId] ?? null
+          const currentName = current ? (folders.find(f => f.id === current)?.name || 'Folder') : null
+          return (
+            <div className="flex justify-end">
+              <Select
+                value={current ?? undefined}
+                onValueChange={(v) => {
+                  setSelectedFolders((m) => ({ ...m, [row.original.docId]: v }))
+                  void assignFolder(row.original.docId, v)
+                }}
+              >
+                <SelectTrigger className="w-[200px] h-8 justify-between">
+                  <div className="flex items-center gap-2">
+                    <IconFolder className="size-4" />
+                    <SelectValue placeholder={currentName || 'Assign folder'} />
+                  </div>
+                </SelectTrigger>
+                <SelectContent align="end">
+                  {folders.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )
+        },
+        enableSorting: false,
+      },
+      // include Source column and the rest
+      baseColumns[2],
+      ...baseColumns.slice(3),
+    ]
+  }, [folders, selectedFolders, hideFolderColumn])
+
   const table = useReactTable({
     data,
-    columns,
+    columns: columnsLocal,
     state: {
       sorting,
       columnVisibility,
@@ -344,7 +454,7 @@ export function DataTable({
                 ) : (
                   <TableRow>
                     <TableCell
-                      colSpan={columns.length}
+                      colSpan={columnsLocal.length}
                       className="h-24 text-center"
                     >
                       No results.

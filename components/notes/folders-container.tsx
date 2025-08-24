@@ -1,11 +1,48 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import NewFolder from './new-folder'
+import { db } from '@/lib/firebase'
+import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore'
+import { useAuthUser } from '@/hooks/use-auth-user'
+import Link from 'next/link'
 
-type Folder = { id: string; name: string; color: string }
+type Folder = { id: string; name: string; color?: string }
 
 const FoldersContainer = () => {
+  const { user } = useAuthUser()
   const [folders, setFolders] = useState<Folder[]>([])
+
+  useEffect(() => {
+    if (!user) {
+      setFolders([])
+      return
+    }
+    const snapshotToRows = (snap: any): Folder[] => {
+      const rows: Folder[] = []
+      snap.forEach((d: any) => rows.push({ id: d.id, ...(d.data() as Omit<Folder, 'id'>) }))
+      return rows
+    }
+
+    let fallbackUnsub: (() => void) | null = null
+    const q1 = query(
+      collection(db, 'folders'),
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    )
+    const unsub = onSnapshot(
+      q1,
+      (snap) => setFolders(snapshotToRows(snap)),
+      () => {
+        // If a composite index is missing, fall back without orderBy
+        const q2 = query(collection(db, 'folders'), where('userId', '==', user.uid))
+        fallbackUnsub = onSnapshot(q2, (snap) => setFolders(snapshotToRows(snap)))
+      }
+    )
+    return () => {
+      unsub()
+      if (fallbackUnsub) fallbackUnsub()
+    }
+  }, [user])
 
   function handleCreate(folder: { name: string; color: string }) {
     setFolders((prev) => [
@@ -38,13 +75,13 @@ const FoldersContainer = () => {
         ) : (
           <div className='mt-6 flex gap-4 overflow-x-auto py-1'>
             {folders.map((f) => (
-              <div key={f.id} className='flex flex-col items-center min-w-[100px] p-3 rounded-md hover:bg-gray-100 transition-colors cursor-pointer'>
+              <Link key={f.id} href={`/dashboard/notes/folder/${f.id}`} className='flex flex-col items-center min-w-[100px] p-3 rounded-md hover:bg-gray-100 transition-colors cursor-pointer'>
                 <img
                   alt="folder"
                   className='h-20 w-auto '
                   src={(() => {
                     // Map selected color to closest folder SVG name
-                    const hex = f.color.toLowerCase()
+                    const hex = (f.color ?? '#ef4444').toLowerCase()
                     if (hex === '#ef4444') return '/FoldersSVG/FolderRed.svg'
                     if (hex === '#faa307') return '/FoldersSVG/FolderOrange.svg'
                     if (hex === '#ffd900') return '/FoldersSVG/FolderYellow.svg'
@@ -58,7 +95,7 @@ const FoldersContainer = () => {
                   })()}
                 />
                 <span className='mt-3 text-sm  truncate max-w-[100px]' title={f.name}>{f.name}</span>
-              </div>
+              </Link>
             ))}
           </div>
         )}

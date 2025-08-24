@@ -5,7 +5,7 @@ export type SummarizePromptConfig = {
 
 export declare const SUMMARIZE_PROMPT: SummarizePromptConfig
 
-export type NoteSourceType = "text" | "document" | "audio" | "link"
+export type NoteSourceType = "text" | "document" | "audio" | "link" 
 
 export type Note = {
   id: string

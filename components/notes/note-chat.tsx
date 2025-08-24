@@ -5,6 +5,10 @@ import { Button } from '@/components/ui/button'
 import { IconLoader2, IconSend } from '@tabler/icons-react'
 import { db } from '@/lib/firebase'
 import { addDoc, collection, onSnapshot, orderBy, query, serverTimestamp } from 'firebase/firestore'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
 
 type Props = {
   noteId: string
@@ -107,7 +111,7 @@ const NoteChat: React.FC<Props> = ({ noteId, title, summary, content }) => {
 
   return (
     <div className='h-full flex flex-col'>
-      <div ref={scrollRef} className='flex-1 overflow-y-auto space-y-3 p-4'>
+      <div ref={scrollRef} className='flex-1 overflow-y-auto space-y-4 p-4'>
         {permError ? (
           <div className='text-xs text-red-500'>
             Missing or insufficient permissions to read chat messages.
@@ -117,8 +121,25 @@ const NoteChat: React.FC<Props> = ({ noteId, title, summary, content }) => {
           <div className='text-sm text-muted-foreground'>Ask a question about this note…</div>
         ) : null}
         {messages.map((m, idx) => (
-          <div key={idx} className={m.role === 'user' ? 'ml-auto max-w-[85%] rounded-xl bg-primary text-primary-foreground px-3 py-2 text-sm' : 'mr-auto max-w-[85%] rounded-xl bg-muted px-3 py-2 text-sm'}>
-            {m.content}
+          <div key={idx} className={m.role === 'user' ? 'ml-auto max-w-[85%] rounded-xl bg-primary text-primary-foreground px-4 py-3 text-sm leading-relaxed' : 'mr-auto max-w-[85%] rounded-xl bg-muted px-4 py-3 text-sm leading-relaxed'}>
+            {m.role === 'assistant' ? (
+              <div className='md-content max-w-none'>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                  components={{
+                    hr: () => <></>,
+                    ul: ({node, ...props}) => <ul className='list-disc pl-5' {...props} />,
+                    ol: ({node, ...props}) => <ol className='list-decimal pl-5' {...props} />,
+                    li: ({node, ...props}) => <li className='my-1' {...props} />,
+                  }}
+                >
+                  {m.content}
+                </ReactMarkdown>
+              </div>
+            ) : (
+              m.content
+            )}
           </div>
         ))}
         {loading ? (
@@ -133,7 +154,7 @@ const NoteChat: React.FC<Props> = ({ noteId, title, summary, content }) => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder='Type your question and press Enter…'
+            placeholder='Ask about this note...'
           />
           <Button size='icon' disabled={!input.trim() || loading} onClick={() => void send()} aria-busy={loading}>
             {loading ? <IconLoader2 className='animate-spin' /> : <IconSend />}

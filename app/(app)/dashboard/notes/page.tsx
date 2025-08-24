@@ -72,7 +72,7 @@ const Notes = () => {
   }, [user])
 
   return (
-    <div className='px-6 py-4'>
+    <div className='px-6 py-4 '>
 
       <div className='mb-8'>
         <FoldersContainer />

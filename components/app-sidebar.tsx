@@ -18,7 +18,8 @@ import {
 } from "@/components/ui/sidebar"
 import { NavUser } from "./nav-user"
 import { NavMain } from "./nav-main"
-import { IconInnerShadowTop, IconNotes, IconPlus } from "@tabler/icons-react"
+import { IconInnerShadowTop, IconListDetails, IconNotes, IconPlus } from "@tabler/icons-react"
+import { NavSecondary } from "./nav-secondary"
 
 // This is sample data.
 const data = {
@@ -33,12 +34,15 @@ const data = {
       url: "/dashboard",
       icon: IconPlus,
     },
-    {
-      title: "My Notes",
-      url: "/dashboard/notes",
-      icon: IconNotes,
-    },
     
+    
+  ],
+  navSecundary: [
+    {
+      title: "All Notes",
+      url: "/dashboard/notes",
+      icon: IconListDetails,
+    },
   ],
   
   
@@ -66,6 +70,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
+        <NavSecondary items={data.navSecundary} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

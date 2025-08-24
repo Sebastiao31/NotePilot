@@ -24,7 +24,7 @@ export function NavMain({
 }) {
   return (
     <SidebarGroup>
-      <SidebarGroupContent className="flex flex-col">
+      <SidebarGroupContent className="flex flex-col ">
         <SidebarGroupLabel>Main</SidebarGroupLabel>
         <SidebarMenu>
           {items.map((item) => (
@@ -38,6 +38,7 @@ export function NavMain({
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
+
       </SidebarGroupContent>
     </SidebarGroup>
   )

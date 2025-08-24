@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useAuthUser } from '@/hooks/use-auth-user'
 import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import SearchBar from '@/components/notes/search-bar'
 
 type TableRow = {
   id: number
@@ -19,6 +20,7 @@ type TableRow = {
 const Notes = () => {
   const { user } = useAuthUser()
   const [rows, setRows] = useState<TableRow[]>([])
+  const [queryText, setQueryText] = useState('')
 
   useEffect(() => {
     if (!user) {
@@ -48,20 +50,28 @@ const Notes = () => {
       })
 
     let fallbackUnsub: (() => void) | null = null
-    const orderedQuery = query(
+    const baseQ = query(
       collection(db, 'notes'),
       where('userId', '==', user.uid),
       orderBy('createdAt', 'desc')
     )
     const unsub = onSnapshot(
-      orderedQuery,
+      baseQ,
       (snap) => {
-        setRows(snapshotToRows(snap))
+        const all = snapshotToRows(snap)
+        const q = queryText.trim().toLowerCase()
+        setRows(
+          q ? all.filter(r => r.header.toLowerCase().includes(q)) : all
+        )
       },
       () => {
         // Likely missing composite index; fall back without orderBy
         const q2 = query(collection(db, 'notes'), where('userId', '==', user.uid))
-        fallbackUnsub = onSnapshot(q2, (snap) => setRows(snapshotToRows(snap)))
+        fallbackUnsub = onSnapshot(q2, (snap) => {
+          const all = snapshotToRows(snap)
+          const q = queryText.trim().toLowerCase()
+          setRows(q ? all.filter(r => r.header.toLowerCase().includes(q)) : all)
+        })
       }
     )
 
@@ -69,7 +79,7 @@ const Notes = () => {
       unsub()
       if (fallbackUnsub) fallbackUnsub()
     }
-  }, [user])
+  }, [user, queryText])
 
   return (
     <div className='px-6 py-4 '>
@@ -79,7 +89,10 @@ const Notes = () => {
       </div>
 
       <div>
-        <h1 className='font-medium'>All Notes</h1>
+        <div className='flex items-center justify-between'>
+          <h1 className='font-medium'>All Notes</h1>
+          <SearchBar value={queryText} onChange={setQueryText} />
+        </div>
         <DataTable data={rows} />
       </div>
     </div>

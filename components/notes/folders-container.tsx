@@ -1,16 +1,29 @@
 "use client"
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import NewFolder from './new-folder'
 import { db } from '@/lib/firebase'
-import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore'
+import { collection, onSnapshot, orderBy, query, where, deleteDoc, doc, getDocs, writeBatch } from 'firebase/firestore'
 import { useAuthUser } from '@/hooks/use-auth-user'
 import Link from 'next/link'
+import { Toggle } from '@/components/ui/toggle'
+import { IconCheckbox, IconTrash } from '@tabler/icons-react'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Button } from '@/components/ui/button'
 
-type Folder = { id: string; name: string; color?: string }
+type Folder = { id: string; name: string; color?: string; notesCount?: number }
 
 const FoldersContainer = () => {
   const { user } = useAuthUser()
   const [folders, setFolders] = useState<Folder[]>([])
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected] = useState<Record<string, boolean>>({})
+  const selectedCount = useMemo(() => Object.values(selected).filter(Boolean).length, [selected])
+
+  useEffect(() => {
+    if (!selectMode && selectedCount > 0) {
+      setSelected({})
+    }
+  }, [selectMode, selectedCount])
 
   useEffect(() => {
     if (!user) {
@@ -31,7 +44,10 @@ const FoldersContainer = () => {
     )
     const unsub = onSnapshot(
       q1,
-      (snap) => setFolders(snapshotToRows(snap)),
+      (snap) => {
+        const rows = snapshotToRows(snap)
+        setFolders(rows)
+      },
       () => {
         // If a composite index is missing, fall back without orderBy
         const q2 = query(collection(db, 'folders'), where('userId', '==', user.uid))
@@ -44,18 +60,75 @@ const FoldersContainer = () => {
     }
   }, [user])
 
+  // Subscribe to per-folder note counts
+  useEffect(() => {
+    if (!user || folders.length === 0) return
+    const unsubs: Array<() => void> = []
+    folders.forEach((f) => {
+      const qNotes = query(
+        collection(db, 'notes'),
+        where('userId', '==', user.uid),
+        where('folderId', '==', f.id)
+      )
+      const u = onSnapshot(qNotes, (ns) => {
+        const cnt = ns.size
+        setFolders((prev) => prev.map((pf) => (pf.id === f.id ? { ...pf, notesCount: cnt } : pf)))
+      })
+      unsubs.push(u)
+    })
+    return () => unsubs.forEach((u) => u())
+  }, [user, folders])
+
   function handleCreate(folder: { name: string; color: string }) {
     setFolders((prev) => [
       ...prev,
       { id: crypto.randomUUID(), name: folder.name, color: folder.color },
     ])
   }
+
+  async function deleteSelected() {
+    if (!user) return
+    const ids = Object.keys(selected).filter((k) => selected[k])
+    if (ids.length === 0) return
+    try {
+      for (const fid of ids) {
+        // Set folderId to null for the user's notes in this folder
+        const qNotes = query(collection(db, 'notes'), where('userId', '==', user.uid), where('folderId', '==', fid))
+        const snap = await getDocs(qNotes)
+        if (!snap.empty) {
+          const batch = writeBatch(db as any)
+          snap.forEach((d) => batch.update(doc(db, 'notes', d.id), { folderId: null }))
+          await batch.commit()
+        }
+        await deleteDoc(doc(db, 'folders', fid))
+      }
+      setSelected({})
+      setSelectMode(false)
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to delete folders', e)
+    }
+  }
   return (
     <div>
         <div className='flex  justify-between items-center'>
             <h1 className='font-medium'>Folders</h1>
             {folders.length > 0 && (
-              <div>
+              <div className='flex items-center gap-2'>
+                {selectMode && selectedCount > 0 ? (
+                  <Button variant='outline' size='default' onClick={() => void deleteSelected()} className='text-red-500 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500'>
+                    <IconTrash/>
+                    Delete {selectedCount} 
+                  </Button>
+                ) : null}
+                <Toggle
+                  aria-label='Select folders'
+                  pressed={selectMode}
+                  onPressedChange={setSelectMode}
+                  className='border'
+                >
+                  <IconCheckbox />
+                </Toggle>
                 <NewFolder onCreate={handleCreate} />
               </div>
             )}
@@ -74,9 +147,16 @@ const FoldersContainer = () => {
           </div>
         ) : (
           <div className='mt-6 flex gap-4 overflow-x-auto py-1'>
-            {folders.map((f) => (
-              <Link key={f.id} href={`/dashboard/notes/folder/${f.id}`} className='flex flex-col items-center min-w-[100px] p-3 rounded-md hover:bg-gray-100 transition-colors cursor-pointer'>
-                <img
+            {folders.map((f) => {
+              const isChecked = !!selected[f.id]
+              const card = (
+                <div className=' flex flex-col items-center p-3 rounded-md hover:bg-gray-100 transition-colors cursor-pointer'>
+                  {selectMode && (
+                    <div className="align-self-start w-full mb-2" >
+                      <Checkbox checked={isChecked} onCheckedChange={(v) => setSelected((m) => ({ ...m, [f.id]: !!v }))} />
+                    </div>
+                  )}
+                  <img
                   alt="folder"
                   className='h-20 w-auto '
                   src={(() => {
@@ -93,10 +173,17 @@ const FoldersContainer = () => {
                     if (hex === '#ff7096') return '/FoldersSVG/FolderPink.svg'
                     return '/FoldersSVG/FolderRed.svg'
                   })()}
-                />
-                <span className='mt-3 text-sm  truncate max-w-[100px]' title={f.name}>{f.name}</span>
-              </Link>
-            ))}
+                  />
+                  <span className='mt-3 text-sm  truncate max-w-[100px]' title={f.name}>{f.name}</span>
+                  <span className='text-xs text-muted-foreground'>{(f.notesCount ?? 0)} notes</span>
+                </div>
+              )
+              return selectMode ? (
+                <div key={f.id} onClick={() => setSelected((m) => ({ ...m, [f.id]: !isChecked }))}>{card}</div>
+              ) : (
+                <Link key={f.id} href={`/dashboard/notes/folder/${f.id}`}>{card}</Link>
+              )
+            })}
           </div>
         )}
         

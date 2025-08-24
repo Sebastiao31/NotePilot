@@ -27,7 +27,9 @@ import {
   IconChevronsLeft,
   IconChevronsRight,
   IconDotsVertical,
+  IconFolderUp,
   IconGripVertical,
+  IconLetterCase,
 } from "@tabler/icons-react"
 import {
   ColumnDef,
@@ -53,9 +55,13 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuLabel,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
 import {
@@ -84,8 +90,8 @@ import Link from "next/link"
 import { useAuthUser } from "@/hooks/use-auth-user"
 import { db } from "@/lib/firebase"
 import { collection, doc, onSnapshot, query, updateDoc, where } from "firebase/firestore"
-import { IconFolder, IconFile, IconLink, IconVolume, IconMicrophone } from "@tabler/icons-react"
-import { SOURCE_TYPE_COLORS } from "@/constants"
+import { IconFolder, IconFile, IconLink, IconVolume, IconMicrophone, IconTrash } from "@tabler/icons-react"
+// badge styles removed
 
 export type DataRow = {
   id: number
@@ -159,38 +165,11 @@ const baseColumns: ColumnDef<DataRow>[] = [
   // Folder column will be overridden in DataTable to include assignment select
   {
     id: "source",
-    header: () => <div className="text-right w-full">Source</div>,
+    header: () => <div className="text-right w-full" />,
     cell: ({ row }) => {
-      const type = (row.original.source || '').toLowerCase()
-      let label = row.original.source || 'Other'
-      let icon: React.ReactNode = <IconFile />
-      let hex = SOURCE_TYPE_COLORS.text
-      if (type.includes('record')) {
-        label = 'Record'
-        icon = <IconMicrophone />
-        hex = '#ef4444' // red for record audio
-      } else if (type.includes('audio')) {
-        label = 'Audio'
-        icon = <IconVolume />
-        hex = SOURCE_TYPE_COLORS.audio
-      } else if (type.includes('link')) {
-        label = 'Link'
-        icon = <IconLink />
-        hex = SOURCE_TYPE_COLORS.link
-      } else if (type.includes('doc') || type.includes('text')) {
-        label = type.includes('doc') ? 'Document' : 'Text'
-        icon = <IconFile />
-        hex = SOURCE_TYPE_COLORS.text
-      }
-      const textColor = hex.toLowerCase() === '#f59e0b' ? '#111827' : '#ffffff'
       return (
-        <div className="text-right">
-          <span className="inline-flex justify-end w-full">
-            <Badge variant="outline" style={{ backgroundColor: hex, color: textColor, borderColor: 'transparent' }} className="ml-auto">
-              {icon}
-              {label}
-            </Badge>
-          </span>
+        <div className="text-right text-muted-foreground">
+          {row.original.source}
         </div>
       )
     },
@@ -208,7 +187,7 @@ const baseColumns: ColumnDef<DataRow>[] = [
   {
     id: "actions",
     header: () => <div className="w-10" />, // spacer so Created At isn't against the edge
-    cell: () => (
+    cell: ({ row }) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -220,11 +199,11 @@ const baseColumns: ColumnDef<DataRow>[] = [
             <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-32">
+        <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuItem>Edit</DropdownMenuItem>
           <DropdownMenuItem>Make a copy</DropdownMenuItem>
           <DropdownMenuItem>Favorite</DropdownMenuItem>
-          <DropdownMenuSeparator />
+          <DropdownMenuItem disabled>Move To (coming soon)</DropdownMenuItem>
           <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -265,7 +244,7 @@ export function DataTable({
   hideFolderColumn?: boolean
 }) {
   const { user } = useAuthUser()
-  const [folders, setFolders] = React.useState<{ id: string; name: string }[]>([])
+  const [folders, setFolders] = React.useState<{ id: string; name: string; color?: string }[]>([])
   const [data, setData] = React.useState(() => initialData)
   const [selectedFolders, setSelectedFolders] = React.useState<Record<string, string | null>>({})
   React.useEffect(() => {
@@ -307,8 +286,8 @@ export function DataTable({
     }
     const q = query(collection(db, 'folders'), where('userId', '==', user.uid))
     const unsub = onSnapshot(q, (snap) => {
-      const items: { id: string; name: string }[] = []
-      snap.forEach((d) => items.push({ id: d.id, name: (d.data() as any).name || 'Folder' }))
+      const items: { id: string; name: string; color?: string }[] = []
+      snap.forEach((d) => items.push({ id: d.id, name: (d.data() as any).name || 'Folder', color: (d.data() as any).color }))
       setFolders(items)
     })
     return () => unsub()
@@ -324,9 +303,58 @@ export function DataTable({
   }
 
   const columnsLocal: ColumnDef<DataRow>[] = React.useMemo(() => {
+    const createdAtCol = baseColumns.find((c) => c.id === 'created-at') as ColumnDef<DataRow> | undefined
+    const actionsCol: ColumnDef<DataRow> = {
+      id: 'actions',
+      header: () => <div className="w-10" />,
+      cell: ({ row }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+              size="icon"
+            >
+              <IconDotsVertical />
+              <span className="sr-only">Open menu</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <IconFolderUp className="size-4 mr-2" />
+                Move To
+                </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                {folders.length === 0 ? (
+                  <DropdownMenuItem disabled>No folders</DropdownMenuItem>
+                ) : (
+                  folders.map((f) => (
+                    <DropdownMenuItem key={f.id} onClick={() => assignFolder(row.original.docId, f.id)}>
+                      <IconFolder className="size-4" style={{ color: (f as any).color ?? '#6b7280' }} />
+                      <span>{f.name}</span>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive">
+              <IconTrash className="size-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    }
     if (hideFolderColumn) {
-      // select, note, source, created-at, actions (without folder column)
-      return [...baseColumns.slice(0, 2), baseColumns[2], ...baseColumns.slice(3)]
+      // select, note, created-at, actions (no folder column, no source column)
+      return [
+        ...baseColumns.slice(0, 2),
+        ...(createdAtCol ? [createdAtCol] : []),
+        actionsCol,
+      ]
     }
     return [
       ...baseColumns.slice(0, 2),
@@ -335,36 +363,25 @@ export function DataTable({
         header: () => <div className="text-right w-full">Folder</div>,
         cell: ({ row }) => {
           const current = selectedFolders[row.original.docId] ?? null
-          const currentName = current ? (folders.find(f => f.id === current)?.name || 'Folder') : null
+          const currentFolder = current ? folders.find((f) => f.id === current) : null
           return (
-            <div className="flex justify-end">
-              <Select
-                value={current ?? undefined}
-                onValueChange={(v) => {
-                  setSelectedFolders((m) => ({ ...m, [row.original.docId]: v }))
-                  void assignFolder(row.original.docId, v)
-                }}
-              >
-                <SelectTrigger className="w-[200px] h-8 justify-between">
-                  <div className="flex items-center gap-2">
-                    <IconFolder className="size-4" />
-                    <SelectValue placeholder={currentName || 'Assign folder'} />
-                  </div>
-                </SelectTrigger>
-                <SelectContent align="end">
-                  {folders.map((f) => (
-                    <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="text-right">
+              {currentFolder ? (
+                <div className="inline-flex items-center gap-1 text-sm text-foreground">
+                  <IconFolder className="size-4" style={{ color: (currentFolder as any).color ?? '#6b7280' }} />
+                  <span>{currentFolder.name}</span>
+                </div>
+              ) : (
+                <span className="text-muted-foreground">No folder</span>
+              )}
             </div>
           )
         },
         enableSorting: false,
       },
-      // include Source column and the rest
-      baseColumns[2],
-      ...baseColumns.slice(3),
+      // exclude Source column; then add created-at and actions
+      ...(createdAtCol ? [createdAtCol] : []),
+      actionsCol,
     ]
   }, [folders, selectedFolders, hideFolderColumn])
 

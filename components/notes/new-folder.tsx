@@ -50,7 +50,7 @@ const NewFolder = ({ onCreate }: Props) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
+        <Button >
           <PlusIcon />
           New Folder
         </Button>

@@ -26,6 +26,7 @@ export default function DashboardLayout({
 
   const pathname = usePathname()
   const [noteTitle, setNoteTitle] = useState<string | null>(null)
+  const [folderName, setFolderName] = useState<string | null>(null)
 
   useEffect(() => {
     const match = pathname.match(/^\/dashboard\/notes\/([^/]+)/)
@@ -45,6 +46,24 @@ export default function DashboardLayout({
     })()
   }, [pathname])
 
+  useEffect(() => {
+    const match = pathname.match(/^\/dashboard\/notes\/folder\/([^/]+)/)
+    if (!match) {
+      setFolderName(null)
+      return
+    }
+    const id = match[1]
+    ;(async () => {
+      try {
+        const snap = await getDoc(doc(db, 'folders', id))
+        if (snap.exists()) setFolderName((snap.data() as any).name || null)
+        else setFolderName(null)
+      } catch {
+        setFolderName(null)
+      }
+    })()
+  }, [pathname])
+
   const title = (() => {
     if (/^\/dashboard(\/?$)/.test(pathname)) return "New Note"
     if (/^\/dashboard\/notes(\/.*)?$/.test(pathname)) return "My Notes"
@@ -59,7 +78,21 @@ export default function DashboardLayout({
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 sticky top-0 bg-background z-10">
           <SidebarTrigger className="-ml-1 " />
           <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-          {/^\/dashboard\/notes\/.+/.test(pathname) ? (
+          {/^\/dashboard\/notes\/folder\/.+/.test(pathname) ? (
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link href="/dashboard/notes">My Notes</Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{folderName || 'Folder'}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+          ) : /^\/dashboard\/notes\/.+/.test(pathname) ? (
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>

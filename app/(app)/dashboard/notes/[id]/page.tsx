@@ -8,12 +8,15 @@ import ViewTranscript from '@/components/notes/view-transcript'
 import { IconClock } from '@tabler/icons-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import AddToFolder from '@/components/notes/add-to-folder'
+import CreateQuiz from '@/components/notes/create-quiz'
+import ViewFlashcard from '@/components/notes/view-flashcard'
 
 type NoteDoc = {
   title: string
   content: string
   summary: string
   createdAt?: Timestamp
+  folderId?: string | null
 }
 
 const NotePage = () => {
@@ -67,13 +70,13 @@ const NotePage = () => {
 
   return (
     <div className="bg-gray-100 h-full p-4">
-    <div className='space-y-4 px-6 py-4 bg-white rounded-lg border border-gray-200'>
+    <div className='space-y-4 px-6 py-6 bg-white rounded-lg border border-gray-200'>
       <h1 className='text-2xl font-semibold'>{note.title}</h1>
 
 
       <div className='flex items-center gap-4'>
       <div>
-        <AddToFolder />
+        <AddToFolder noteId={params.id} />
       </div>
 
       <div className='bg-gray-50 rounded-md py-2 px-3 text-sm text-gray-500 w-fit flex items-center gap-1.5'>
@@ -85,6 +88,11 @@ const NotePage = () => {
 
       <div>
         <ViewTranscript content={note.content} />
+      </div>
+
+      <div className='flex items-center gap-2'>
+        <CreateQuiz noteId={params.id} />
+        <ViewFlashcard />
       </div>
 
 

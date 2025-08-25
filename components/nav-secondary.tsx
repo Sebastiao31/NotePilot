@@ -109,7 +109,7 @@ export function NavSecondary({ items = [], ...props }: { items?: NavItem[] } & R
                 >
                   <Link href={`/dashboard/notes/folder/${f.id}`}>
                     <span className="inline-flex items-center gap-2">
-                      <IconFolder style={{ color }} className="size-5" />
+                      <IconFolder style={{ color }} className="size-4" />
                       <span>{f.name}</span>
                     </span>
                     <IconChevronDown className={isOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />

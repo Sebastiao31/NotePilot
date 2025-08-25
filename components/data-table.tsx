@@ -89,7 +89,7 @@ import {
 import Link from "next/link"
 import { useAuthUser } from "@/hooks/use-auth-user"
 import { db } from "@/lib/firebase"
-import { collection, doc, onSnapshot, query, updateDoc, where } from "firebase/firestore"
+import { collection, doc, onSnapshot, query, updateDoc, where, deleteDoc } from "firebase/firestore"
 import { IconFolder, IconFile, IconLink, IconVolume, IconMicrophone, IconTrash } from "@tabler/icons-react"
 // badge styles removed
 
@@ -239,9 +239,13 @@ function DraggableRow({ row }: { row: Row<DataRow> }) {
 export function DataTable({
   data: initialData,
   hideFolderColumn = false,
+  onSelectionChange,
+  resetSelectionKey,
 }: {
   data: DataRow[]
   hideFolderColumn?: boolean
+  onSelectionChange?: (selected: DataRow[]) => void
+  resetSelectionKey?: number
 }) {
   const { user } = useAuthUser()
   const [folders, setFolders] = React.useState<{ id: string; name: string; color?: string }[]>([])
@@ -410,6 +414,16 @@ export function DataTable({
     getFacetedUniqueValues: getFacetedUniqueValues(),
   })
 
+  React.useEffect(() => {
+    onSelectionChange?.(table.getSelectedRowModel().rows.map((r) => r.original))
+  }, [rowSelection, data])
+
+  React.useEffect(() => {
+    if (resetSelectionKey !== undefined) {
+      setRowSelection({})
+    }
+  }, [resetSelectionKey])
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (active && over && active.id !== over.id) {
@@ -484,8 +498,7 @@ export function DataTable({
         </div>
         <div className="flex items-center justify-between">
           <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-            {table.getFilteredSelectedRowModel().rows.length} of{" "}
-            {table.getFilteredRowModel().rows.length} note(s) selected.
+            {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} note(s) selected.
           </div>
           <div className="flex w-full items-center gap-8 lg:w-fit">
             <div className="hidden items-center gap-2 lg:flex">

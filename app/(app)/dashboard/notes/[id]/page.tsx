@@ -92,7 +92,7 @@ const NotePage = () => {
 
       <div className='flex items-center gap-2'>
         <CreateQuiz noteId={params.id} />
-        <ViewFlashcard />
+        <ViewFlashcard noteId={params.id} />
       </div>
 
 
